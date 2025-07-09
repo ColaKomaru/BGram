@@ -1,0 +1,9 @@
+import telebot
+
+bot = telebot.TeleBot("7988875247:AAG9Ds_jJNZPhpyJ_0yR0pEWmQGa7Q7CPxI")  # замени на свой токен
+
+@bot.message_handler(commands=['start'])
+def start(message):
+    bot.send_message(message.chat.id, "Привет!")
+
+bot.polling()
