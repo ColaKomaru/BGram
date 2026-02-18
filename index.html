@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Hand Tracking Console</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <style>
+        body { background: #1a1a1a; color: white; font-family: sans-serif; text-align: center; }
+        video { display: none; }
+        canvas { width: 90%; max-width: 500px; border: 2px solid #444; border-radius: 10px; }
+        .data-box { background: #000; padding: 10px; margin: 10px auto; width: fit-content; border-radius: 5px; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h2>Mediapipe to Roblox (E,R,T,Y)</h2>
+    <canvas id="output_canvas"></canvas>
+    <div class="data-box" id="debug">Ожидание камеры...</div>
+
+    <script type="module">
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const debug = document.getElementById('debug');
+
+        let states = { E: false, R: false, T: false, Y: false };
+
+        function onResults(results) {
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks[0]) {
+                const landmarks = results.multiHandLandmarks[0];
+                
+                // Логика: кончик пальца (8,12,16,20) выше сустава (-2)
+                const newStates = {
+                    Y: landmarks[8].y < landmarks[6].y,   // Указательный
+                    T: landmarks[12].y < landmarks[10].y, // Средний
+                    R: landmarks[16].y < landmarks[14].y, // Безымянный
+                    E: landmarks[20].y < landmarks[18].y  // Мизинец
+                };
+
+                states = newStates;
+                debug.innerText = JSON.stringify(states);
+
+                // Отправка на сервер Replit
+                fetch('/update', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(states)
+                }).catch(() => {});
+            }
+            canvasCtx.restore();
+        }
+
+        const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+        hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+        hands.onResults(onResults);
+
+        const videoElement = document.createElement('video');
+        const camera = new Camera(videoElement, {
+            onFrame: async () => { await hands.send({image: videoElement}); },
+            width: 640, height: 480
+        });
+        camera.start();
+    </script>
+</body>
+</html>
